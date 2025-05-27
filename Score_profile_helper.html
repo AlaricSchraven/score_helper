@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Waarde Rangschikking met Upload of Handmatig</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: #f9f9f9; margin: 0; padding: 20px; color: #333; }
+		header, footer { background: #f0f0f0; padding: 15px 20px; border-bottom: 2px solid #ccc; }
+		footer { border-top: 2px solid #ccc; border-bottom: none; text-align: center; margin-top: 30px; font-size: 14px; color: #666; }
+        #container { max-width: 1000px; margin: auto; background: #fff; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; }
+        #drop-area, #manual-input { border: 2px dashed #888; padding: 20px; margin-bottom: 20px; border-radius: 10px; background: #f0f0f0; }
+        #manual-input { text-align: left; }
+        #manual-entry { width: 100%; padding: 12px; font-size: 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+        #manual-list { padding-left: 20px; }
+        .choice { margin: 10px 0; padding: 15px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; cursor: pointer; text-align: center; transition: transform 0.2s, background-color 0.3s; }
+        .choice:hover { background-color: #e0ffe0; }
+        .choice:active { transform: scale(0.95); }
+        .hidden { display: none; }
+        button { margin: 30px auto; display: block; padding: 20px 20px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; transition: transform 0.2s; }
+        button:hover { background: #45a049; }
+        button:active { transform: scale(0.95); }
+        ol { padding-left: 20px; }
+        #progress-container { width: 100%; background: #ddd; border-radius: 10px; margin: 15px 0; height: 20px; overflow: hidden; }
+        #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4caf50, #81c784); border-radius: 10px; transition: width 0.3s ease; }
+        .list-container { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; }
+        .list-block { flex: 1; min-width: 300px; }
+        .fa-star, .fa-ranking-star, .fa-bars { color: #ff9800; }
+        .fa-list-check, .fa-upload, .fa-scale-balanced, .fa-pen-to-square { color: #4caf50; }
+        .fa-rotate-left { color: #ffffff; }
+        #instruction-text { text-align: center; margin-top: 20px; font-weight: 600; font-size: medium; }
+    </style>
+</head>
+<body>
+<div id="container">
+	<header>
+	<h1><i class="fa-solid fa-list-check"></i> Score Rangschikker Helper <small>(versie 2.1)</small</h1>
+		
+	</header>
+    
+
+    <div id="input-buttons">
+        <button onclick="chooseInputMethod('upload')"><i class="fa-solid fa-upload"></i> Upload .txt-bestand</button>
+        <button onclick="chooseInputMethod('manual')"><i class="fa-solid fa-pen-to-square"></i> Zelf Invoeren</button>
+    </div>
+
+    <div id="instruction-text" class="hidden"></div>
+
+    <div id="drop-area" class="hidden">
+        <p>Sleep hier een .txt-bestand met één waarde per regel</p>
+    </div>
+
+    <div id="manual-input" class="hidden">
+	<p><em>Tip: druk op Enter om een waarde toe te voegen.</em></p>
+        <input type="text" id="manual-entry" placeholder="Voer waarde in...">
+        <ul id="manual-list" style="text-align: left;"></ul>
+        <button onclick="finalizeManualEntry()">Klaar</button>
+    </div>
+
+    <div id="progress-container" class="hidden">
+        <div id="progress-bar"></div>
+    </div>
+
+    <div id="choice-section" class="hidden">
+        <h2><i class="fa-solid fa-scale-balanced"></i> Kies welke belangrijker is:</h2>
+        <div class="choice" id="option1"></div>
+        <div class="choice" id="option2"></div>
+    </div>
+
+    <div id="result-section" class="hidden">
+        <div class="list-container">
+            <div class="list-block">
+                <h2><i class="fa-solid fa-bars"></i> Originele Lijst</h2>
+                <ol id="original-list"></ol>
+            </div>
+            <div class="list-block">
+                <h2><i class="fa-solid fa-ranking-star"></i> Gerangschikte Lijst</h2>
+                <ol id="ranked-list"></ol>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <div style="text-align: left;">
+                <h2><i class="fa-solid fa-star"></i> Top 5</h2>
+                <ol id="top5-list"></ol>
+            </div>
+        </div>
+        <button onclick="restart()"><i class="fa-solid fa-rotate-left"></i> Opnieuw Beginnen</button>
+    </div>
+	<footer>
+    &copy; Alaric Schraven 2025
+</footer>
+	
+</div>
+
+<script>
+let originalItems = [];
+let remainingItems = [];
+let rankedItems = [];
+let currentWinner = null;
+let currentIndex = 1;
+let manualEntries = [];
+
+const inputButtons = document.getElementById('input-buttons');
+const instructionText = document.getElementById('instruction-text');
+const dropArea = document.getElementById('drop-area');
+const manualInput = document.getElementById('manual-input');
+const manualEntry = document.getElementById('manual-entry');
+const manualList = document.getElementById('manual-list');
+const choiceSection = document.getElementById('choice-section');
+const option1Div = document.getElementById('option1');
+const option2Div = document.getElementById('option2');
+const resultSection = document.getElementById('result-section');
+const rankedList = document.getElementById('ranked-list');
+const originalList = document.getElementById('original-list');
+const top5List = document.getElementById('top5-list');
+const progressBar = document.getElementById('progress-bar');
+const progressContainer = document.getElementById('progress-container');
+
+function chooseInputMethod(method) {
+    inputButtons.classList.add('hidden');
+    if (method === 'upload') {
+        instructionText.textContent = 'Upload je bestand...';
+        dropArea.classList.remove('hidden');
+        manualInput.classList.add('hidden');
+    } else {
+        instructionText.textContent = 'Voer nu je waarden in...';
+        manualInput.classList.remove('hidden');
+        dropArea.classList.add('hidden');
+        manualEntry.focus();
+    }
+    instructionText.classList.remove('hidden');
+}
+
+manualEntry.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addManualEntry();
+    }
+});
+
+dropArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropArea.style.backgroundColor = '#e0e0e0';
+});
+
+dropArea.addEventListener('dragleave', () => {
+    dropArea.style.backgroundColor = '#f0f0f0';
+});
+
+dropArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropArea.style.backgroundColor = '#f0f0f0';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            originalItems = [...new Set(lines)];
+            instructionText.textContent = 'Lijst geladen! Klaar om te beginnen met rangschikken...';
+            animateButtonStart(() => startRanking([...originalItems]));
+        };
+        reader.readAsText(file);
+    } else {
+        alert('Upload een geldig .txt-bestand');
+    }
+});
+
+function addManualEntry() {
+    let value = manualEntry.value.trim();
+    if (value) {
+        value = value.charAt(0).toUpperCase() + value.slice(1);
+        if (!manualEntries.includes(value)) {
+            manualEntries.push(value);
+            const li = document.createElement('li');
+            li.textContent = value;
+            manualList.appendChild(li);
+            manualEntry.value = '';
+            manualEntry.focus();
+        }
+    }
+}
+
+function finalizeManualEntry() {
+    if (manualEntries.length > 0) {
+        originalItems = [...manualEntries];
+        manualInput.classList.add('hidden');
+        instructionText.textContent = 'Lijst geladen! Klaar om te beginnen met rangschikken...';
+        animateButtonStart(() => startRanking([...originalItems]));
+    } else {
+        alert('Voer eerst waarden in voordat je op "Klaar" klikt.');
+    }
+}
+
+function animateButtonStart(callback) {
+    instructionText.textContent = 'Even geduld... we starten!';
+    instructionText.style.transition = 'transform 0.5s';
+    instructionText.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+        instructionText.style.transform = 'scale(1)';
+        callback();
+    }, 700);
+}
+
+function startRanking(list) {
+    remainingItems = [...list];
+    rankedItems = [];
+    progressContainer.classList.remove('hidden');
+    nextRound();
+}
+
+function updateProgress() {
+    const percent = Math.floor(((originalItems.length - remainingItems.length) / originalItems.length) * 100);
+    progressBar.style.width = percent + '%';
+}
+
+function nextRound() {
+    if (remainingItems.length === 0) {
+        showResults();
+        return;
+    }
+    currentWinner = remainingItems[0];
+    currentIndex = 1;
+    compareNext();
+}
+
+function compareNext() {
+    if (currentIndex >= remainingItems.length) {
+        rankedItems.push(currentWinner);
+        remainingItems = remainingItems.filter(item => item !== currentWinner);
+        updateProgress();
+        nextRound();
+        return;
+    }
+    showChoice(currentWinner, remainingItems[currentIndex]);
+}
+
+function showChoice(item1, item2) {
+    dropArea.classList.add('hidden');
+    manualInput.classList.add('hidden');
+    choiceSection.classList.remove('hidden');
+
+    option1Div.textContent = item1;
+    option2Div.textContent = item2;
+
+    option1Div.onclick = () => {
+        animateChoice(option1Div, () => {
+            currentIndex++;
+            compareNext();
+        });
+    };
+    option2Div.onclick = () => {
+        animateChoice(option2Div, () => {
+            currentWinner = item2;
+            currentIndex++;
+            compareNext();
+        });
+    };
+}
+
+function animateChoice(element, callback) {
+    element.style.transition = 'transform 0.2s';
+    element.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+        element.style.transform = 'scale(1)';
+        callback();
+    }, 300);
+}
+
+function showResults() {
+    choiceSection.classList.add('hidden');
+    resultSection.classList.remove('hidden');
+
+    originalList.innerHTML = '';
+    originalItems.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        originalList.appendChild(li);
+    });
+
+    rankedList.innerHTML = '';
+    rankedItems.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        rankedList.appendChild(li);
+    });
+
+    top5List.innerHTML = '';
+    rankedItems.slice(0, 5).forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        top5List.appendChild(li);
+    });
+}
+
+function restart() {
+    location.reload();
+}
+</script>
+
+
+
+</body>
+</html>
