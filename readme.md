@@ -13,7 +13,9 @@ Gebruikers kunnen eenvoudig hun eigen lijst invoeren (handmatig of via upload), 
 
 ## Demo
 
-![Screenshot](screenshot.png)
+![Screenshot_1](https://github.com/user-attachments/assets/da2f31b5-49d1-4408-bc67-ceddf40e0876)
+![Screenshot_2](https://github.com/user-attachments/assets/08fada13-d40d-4b62-86bc-2cc41d3b759d)
+![Screenshot_3](https://github.com/user-attachments/assets/20c93c44-caf5-4a36-a445-f9906096bcd7)
 
 ---
 
