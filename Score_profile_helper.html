@@ -20,8 +20,24 @@
         .choice:active { transform: scale(0.95); }
         .hidden { display: none; }
         button { margin: 30px auto; display: block; padding: 20px 20px; background: #4caf50; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; transition: transform 0.2s; }
-        button:hover { background: #45a049; }
+        /* Zorg dat alle knoppen in #input-buttons even breed zijn */
+        #input-buttons { display: flex; gap: 20px; justify-content: center; }
+        #input-buttons button { flex: 1 1 0; min-width: 200px; max-width: 320px; }
+    
+ 
+        button:hover { background: #d55600; }
         button:active { transform: scale(0.95); }
+
+/* Alleen iconen binnen knoppen wit maken */
+button .fa-list-check,
+button .fa-upload,
+button .fa-scale-balanced,
+button .fa-pen-to-square,
+button .fa-paste {
+    color: #fff;
+}
+
+
         ol { padding-left: 20px; }
         #progress-container { width: 100%; background: #ddd; border-radius: 10px; margin: 15px 0; height: 20px; overflow: hidden; }
         #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4caf50, #81c784); border-radius: 10px; transition: width 0.3s ease; }
@@ -36,7 +52,7 @@
 <body>
 <div id="container">
 	<header>
-	<h1><i class="fa-solid fa-list-check"></i> Score Rangschikker Hulp<small> (versie 2.1)</small></h1>
+	<h1><i class="fa-solid fa-list-check"></i> Score Rangschikker Hulp<small> (versie 2.2)</small></h1>
 		
 	</header>
     
@@ -44,12 +60,19 @@
     <div id="input-buttons">
         <button onclick="chooseInputMethod('upload')"><i class="fa-solid fa-upload"></i> Upload .txt-bestand</button>
         <button onclick="chooseInputMethod('manual')"><i class="fa-solid fa-pen-to-square"></i> Zelf Invoeren</button>
+        <button onclick="chooseInputMethod('paste')"><i class="fa-solid fa-paste"></i> Plak tekst</button>
     </div>
 
     <div id="instruction-text" class="hidden"></div>
 
     <div id="drop-area" class="hidden">
         <p>Sleep hier een .txt-bestand met één waarde per regel</p>
+    </div>
+
+    <div id="paste-area" class="hidden">
+        <p>Plak hier je tekst (één waarde per regel):</p>
+        <textarea id="paste-textarea" rows="8" style="width:100%; font-size:16px; border-radius:8px; border:1px solid #ccc; padding:10px;"></textarea>
+        <button onclick="finalizePasteEntry()">Klaar</button>
     </div>
 
     <div id="manual-input" class="hidden">
@@ -89,12 +112,13 @@
         <button onclick="restart()"><i class="fa-solid fa-rotate-left"></i> Opnieuw Beginnen</button>
     </div>
 	<footer>
-    &copy; Alaric Schraven 2025 (<a href="https://consensas.nl"><span style="color: #d55600;">CONSENS</span><span style="color: #007c89;">AS</span>.nl</a>)<br>
+    &copy; Alaric Schraven 2025 (<a href="https://consensas.nl"><b><span style="color: #d55600;">CONSENS</span><span style="color: #007c89;">AS</span>.nl</a></b>)<br>
 </footer>
 	
 </div>
 
 <script>
+// Globale variabelen voor de lijsten en status
 let originalItems = [];
 let remainingItems = [];
 let rankedItems = [];
@@ -102,6 +126,7 @@ let currentWinner = null;
 let currentIndex = 1;
 let manualEntries = [];
 
+// Elementen ophalen
 const inputButtons = document.getElementById('input-buttons');
 const instructionText = document.getElementById('instruction-text');
 const dropArea = document.getElementById('drop-area');
@@ -117,22 +142,59 @@ const originalList = document.getElementById('original-list');
 const top5List = document.getElementById('top5-list');
 const progressBar = document.getElementById('progress-bar');
 const progressContainer = document.getElementById('progress-container');
+const pasteArea = document.getElementById('paste-area');
+const pasteTextarea = document.getElementById('paste-textarea');
 
+/**
+ * Toon het juiste invoerveld op basis van de gekozen methode.
+ */
 function chooseInputMethod(method) {
-    inputButtons.classList.add('hidden');
+    //inputButtons.classList.add('hidden');
+    instructionText.classList.remove('hidden');
     if (method === 'upload') {
         instructionText.textContent = 'Upload je bestand...';
         dropArea.classList.remove('hidden');
         manualInput.classList.add('hidden');
-    } else {
+        pasteArea.classList.add('hidden');
+    } else if (method === 'manual') {
         instructionText.textContent = 'Voer nu je waarden in...';
         manualInput.classList.remove('hidden');
         dropArea.classList.add('hidden');
+        pasteArea.classList.add('hidden');
         manualEntry.focus();
+    } else if (method === 'paste') {
+        instructionText.textContent = 'Plak nu je tekst (één waarde per regel)...';
+        pasteArea.classList.remove('hidden');
+        dropArea.classList.add('hidden');
+        manualInput.classList.add('hidden');
+        pasteTextarea.value = '';
+        pasteTextarea.focus();
     }
-    instructionText.classList.remove('hidden');
 }
 
+/**
+ * Verwerk geplakte tekst uit het tekstvak.
+ */
+function finalizePasteEntry() {
+    const text = pasteTextarea.value.trim();
+    if (text) {
+        const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line !== '');
+        if (lines.length > 0) {
+            originalItems = [...new Set(lines.map(line => line.charAt(0).toUpperCase() + line.slice(1)))];
+            pasteArea.classList.add('hidden');
+            instructionText.textContent = 'Lijst geladen! Klaar om te beginnen met rangschikken...';
+            animateButtonStart(() => startRanking([...originalItems]));
+        } else {
+            alert('Voer eerst waarden in voordat je op "Klaar" klikt.');
+        }
+    } else {
+        alert('Voer eerst waarden in voordat je op "Klaar" klikt.');
+    }
+}
+
+/**
+ * Voeg handmatige invoer toe aan de lijst.
+ */
 manualEntry.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -140,6 +202,9 @@ manualEntry.addEventListener('keypress', (e) => {
     }
 });
 
+/**
+ * Drag & drop functionaliteit voor uploaden van .txt-bestand.
+ */
 dropArea.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropArea.style.backgroundColor = '#e0e0e0';
@@ -168,6 +233,9 @@ dropArea.addEventListener('drop', (e) => {
     }
 });
 
+/**
+ * Voeg een handmatige waarde toe aan de lijst.
+ */
 function addManualEntry() {
     let value = manualEntry.value.trim();
     if (value) {
@@ -183,6 +251,9 @@ function addManualEntry() {
     }
 }
 
+/**
+ * Verwerk handmatige invoer als lijst.
+ */
 function finalizeManualEntry() {
     if (manualEntries.length > 0) {
         originalItems = [...manualEntries];
@@ -194,6 +265,9 @@ function finalizeManualEntry() {
     }
 }
 
+/**
+ * Kleine animatie bij het starten van het rangschikken.
+ */
 function animateButtonStart(callback) {
     instructionText.textContent = 'Even geduld... we starten!';
     instructionText.style.transition = 'transform 0.5s';
@@ -204,18 +278,34 @@ function animateButtonStart(callback) {
     }, 700);
 }
 
+/**
+ * Start het rangschikproces.
+ */
 function startRanking(list) {
+     // Verberg de input-buttons zodra het rangschikken start
+    inputButtons.classList.add('hidden');
     remainingItems = [...list];
     rankedItems = [];
     progressContainer.classList.remove('hidden');
     nextRound();
+
+    // remainingItems = [...list];
+    // rankedItems = [];
+    // progressContainer.classList.remove('hidden');
+    // nextRound();
 }
 
+/**
+ * Update de voortgangsbalk.
+ */
 function updateProgress() {
     const percent = Math.floor(((originalItems.length - remainingItems.length) / originalItems.length) * 100);
     progressBar.style.width = percent + '%';
 }
 
+/**
+ * Start een nieuwe ronde van vergelijken.
+ */
 function nextRound() {
     if (remainingItems.length === 0) {
         showResults();
@@ -226,6 +316,9 @@ function nextRound() {
     compareNext();
 }
 
+/**
+ * Vergelijk de huidige winnaar met het volgende item.
+ */
 function compareNext() {
     if (currentIndex >= remainingItems.length) {
         rankedItems.push(currentWinner);
@@ -237,6 +330,9 @@ function compareNext() {
     showChoice(currentWinner, remainingItems[currentIndex]);
 }
 
+/**
+ * Toon de keuze aan de gebruiker.
+ */
 function showChoice(item1, item2) {
     dropArea.classList.add('hidden');
     manualInput.classList.add('hidden');
@@ -260,6 +356,9 @@ function showChoice(item1, item2) {
     };
 }
 
+/**
+ * Kleine animatie bij het kiezen.
+ */
 function animateChoice(element, callback) {
     element.style.transition = 'transform 0.2s';
     element.style.transform = 'scale(1.2)';
@@ -269,6 +368,9 @@ function animateChoice(element, callback) {
     }, 300);
 }
 
+/**
+ * Toon de resultaten na het rangschikken.
+ */
 function showResults() {
     choiceSection.classList.add('hidden');
     resultSection.classList.remove('hidden');
@@ -295,6 +397,9 @@ function showResults() {
     });
 }
 
+/**
+ * Herstart de tool.
+ */
 function restart() {
     location.reload();
 }
